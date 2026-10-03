@@ -31,7 +31,7 @@ LOGISTICS = [
         'order_id': 'L001',
         'supplier_id': 1,
         'destination': '北京市海淀区仓库',
-        'status': '待出货',
+        'status': '待出貨',
         'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     }
 ]
@@ -64,6 +64,18 @@ DELIVERY = [
     }
 ]
 
+def next_id(records):
+    return max((record['id'] for record in records), default=0) + 1
+
+
+def parse_positive_quantity():
+    try:
+        quantity = int(request.form.get('quantity', ''))
+    except (TypeError, ValueError):
+        return None
+    return quantity if quantity > 0 else None
+
+
 @app.route('/')
 def index():
     """主页"""
@@ -79,7 +91,7 @@ def add_supplier():
     """添加供应商"""
     if request.method == 'POST':
         new_supplier = {
-            'id': len(SUPPLIERS) + 1,
+            'id': next_id(SUPPLIERS),
             'name': request.form['name'],
             'contact': request.form['contact'],
             'phone': request.form['phone'],
@@ -111,7 +123,7 @@ def edit_supplier(supplier_id):
         return redirect(url_for('suppliers'))
     return render_template('edit_supplier.html', supplier=supplier)
 
-@app.route('/suppliers/delete/<int:supplier_id>')
+@app.route('/suppliers/delete/<int:supplier_id>', methods=['POST'])
 def delete_supplier(supplier_id):
     """删除供应商"""
     global SUPPLIERS
@@ -128,16 +140,23 @@ def logistics():
 def add_logistics():
     """添加物流订单"""
     if request.method == 'POST':
+        try:
+            supplier_id = int(request.form.get('supplier_id', ''))
+        except ValueError:
+            supplier_id = None
+        if not any(supplier['id'] == supplier_id for supplier in SUPPLIERS):
+            flash('請選擇有效的供應商！', 'error')
+            return redirect(url_for('add_logistics'))
         new_logistics = {
-            'id': len(LOGISTICS) + 1,
+            'id': next_id(LOGISTICS),
             'order_id': request.form['order_id'],
-            'supplier_id': int(request.form['supplier_id']),
+            'supplier_id': supplier_id,
             'destination': request.form['destination'],
-            'status': '待出货',
+            'status': '待出貨',
             'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }
         LOGISTICS.append(new_logistics)
-        flash('物流订单创建成功！', 'success')
+        flash('物流訂單建立成功！', 'success')
         return redirect(url_for('logistics'))
     return render_template('add_logistics.html', suppliers=SUPPLIERS)
 
@@ -146,8 +165,12 @@ def update_logistics_status(logistics_id):
     """更新物流状态"""
     logistics_item = next((l for l in LOGISTICS if l['id'] == logistics_id), None)
     if logistics_item:
-        logistics_item['status'] = request.form['status']
-        flash('物流状态更新成功！', 'success')
+        status = request.form.get('status')
+        if status not in {'待出貨', '運輸中', '已送達'}:
+            flash('物流狀態無效！', 'error')
+            return redirect(url_for('logistics'))
+        logistics_item['status'] = status
+        flash('物流狀態更新成功！', 'success')
     else:
         flash('物流订单不存在！', 'error')
     return redirect(url_for('logistics'))
@@ -162,7 +185,10 @@ def inventory_in(item_id):
     """商品入库"""
     item = next((i for i in INVENTORY if i['id'] == item_id), None)
     if item:
-        quantity = int(request.form['quantity'])
+        quantity = parse_positive_quantity()
+        if quantity is None:
+            flash('數量必須是正整數！', 'error')
+            return redirect(url_for('inventory'))
         item['quantity'] += quantity
         flash(f'商品 {item["name"]} 入库 {quantity} 个，当前库存：{item["quantity"]}', 'success')
     else:
@@ -174,7 +200,10 @@ def inventory_out(item_id):
     """商品出库"""
     item = next((i for i in INVENTORY if i['id'] == item_id), None)
     if item:
-        quantity = int(request.form['quantity'])
+        quantity = parse_positive_quantity()
+        if quantity is None:
+            flash('數量必須是正整數！', 'error')
+            return redirect(url_for('inventory'))
         if item['quantity'] >= quantity:
             item['quantity'] -= quantity
             flash(f'商品 {item["name"]} 出库 {quantity} 个，当前库存：{item["quantity"]}', 'success')
@@ -194,7 +223,7 @@ def add_delivery():
     """添加配送订单"""
     if request.method == 'POST':
         new_delivery = {
-            'id': len(DELIVERY) + 1,
+            'id': next_id(DELIVERY),
             'order_id': request.form['order_id'],
             'customer': request.form['customer'],
             'address': request.form['address'],
@@ -211,7 +240,11 @@ def update_delivery_status(delivery_id):
     """更新配送状态"""
     delivery_item = next((d for d in DELIVERY if d['id'] == delivery_id), None)
     if delivery_item:
-        delivery_item['status'] = request.form['status']
+        status = request.form.get('status')
+        if status not in {'準備中', '配送中', '已完成'}:
+            flash('配送狀態無效！', 'error')
+            return redirect(url_for('delivery'))
+        delivery_item['status'] = status
         flash('配送状态更新成功！', 'success')
     else:
         flash('配送订单不存在！', 'error')

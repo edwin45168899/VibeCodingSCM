@@ -38,36 +38,33 @@
 ## 安装和运行
 
 ### 1. 环境准备
-```bash
-./.venv\Scripts\Activate.ps1
-
-# 确保已安装 Python 3.7+
-python --version
-
-# 克隆项目
+```powershell
+# 克隆项目后进入项目目录
 git clone <repository-url>
-cd VibeCodingSCM
+Set-Location VibeCodingSCM
+
+# 使用项目指定的 Python 版本（见 .python-version）
+py -3.11 --version
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
 ```
 
 ### 2. 安装依赖
-```bash
-pip install -r requirements.txt
+```powershell
+python -m pip install -r requirements.txt
 ```
 
 ### 3. 运行应用
-```bash
+```powershell
 python app.py
 ```
 
 ### 4. 运行测试
-```bash
-# 运行测试脚本（需要 Linux/Mac）
-chmod +x test_app.sh
-./test_app.sh
-
-# 或者直接运行应用进行手动测试
-python app.py
+```powershell
+python -m unittest discover -s tests -v
 ```
+
+Linux/macOS 也可使用 `test_app.sh` 执行启动检查。
 
 ### 5. 访问应用
 打开浏览器访问：`http://localhost:5000`
@@ -78,6 +75,7 @@ python app.py
 VibeCodingSCM/
 ├── app.py                 # 主应用文件
 ├── requirements.txt       # 项目依赖
+├── tests/                 # Flask 路由回归测试
 ├── PRD.md                # 产品需求文档
 ├── README.md             # 项目说明
 ├── templates/            # HTML 模板
